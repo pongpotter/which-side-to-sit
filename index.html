@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Which Side to Sit</title>
+    
+    <!-- Chosen Palette: Cheerful (Sky Blue, Sunny Yellow, White) -->
+    <!-- Application Structure Plan: Simplified initial flow to From/To/Mode. After the general result is shown, a new "refine search" section appears, allowing for optional personalization. This improves user flow by providing value upfront and offering customization as a secondary action. -->
+    <!-- Visualization & Content Choices: The new "refine" section is a compact form within the result card. Its appearance is conditional, showing only after a general search. This keeps the initial result screen clean while still providing a clear path to a more specific answer. The AI prompt is dynamically adjusted based on whether a refinement is requested. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-image: radial-gradient(circle at top left, rgba(135, 206, 235, 0.2), transparent 40%),
+                              radial-gradient(circle at bottom right, rgba(255, 215, 0, 0.2), transparent 40%);
+            background-attachment: fixed;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.75);
+            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .step {
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+        }
+        .hidden-step {
+            opacity: 0;
+            transform: translateY(10px);
+            position: absolute;
+            pointer-events: none;
+        }
+        .visible-step {
+            opacity: 1;
+            transform: translateY(0);
+            position: static;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #87CEEB;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-icon {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-radius: 10px;
+            position: relative;
+            background-color: #87CEEB;
+            overflow: hidden;
+        }
+        .result-icon::before {
+            content: '★';
+            position: absolute;
+            font-size: 30px;
+            color: #FFD700;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(15deg);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        #expanded-explanation {
+            transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <header class="text-center mb-8">
+        <h1 class="text-4xl md:text-5xl font-black text-gray-800">Which Side to Sit</h1>
+        <p class="text-lg md:text-xl text-gray-600 mt-2">Don't just travel, enjoy the view. We'll tell you which side to sit on.</p>
+    </header>
+
+    <main id="app-container" class="w-full max-w-lg">
+        <!-- Conversational Finder Card -->
+        <div id="finder-card" class="card w-full rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8">
+            <div id="step-container" class="relative">
+                <!-- Step 1: From Location -->
+                <div id="step-1" class="step visible-step w-full">
+                    <label for="from-input" class="block text-lg font-bold mb-2">Hello! Where is your journey starting from?</label>
+                    <input type="text" id="from-input" placeholder="e.g., Nubra Valley" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition">
+                </div>
+                <!-- Step 2: To Location -->
+                <div id="step-2" class="step hidden-step w-full">
+                    <label for="to-input" class="block text-lg font-bold mb-2">Got it! And where are you heading to?</label>
+                    <input type="text" id="to-input" placeholder="e.g., Turtuk" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition">
+                </div>
+                <!-- Step 3: Mode of Transport -->
+                <div id="step-3" class="step hidden-step w-full">
+                    <p class="text-lg font-bold mb-4">Great! How will you be traveling?</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button data-mode="Plane" class="transport-btn bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold py-4 px-2 rounded-lg flex items-center justify-center text-lg transition-transform transform hover:scale-105">✈️&nbsp; Plane</button>
+                        <button data-mode="Road" class="transport-btn bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold py-4 px-2 rounded-lg flex items-center justify-center text-lg transition-transform transform hover:scale-105">🛣️&nbsp; Road</button>
+                        <button data-mode="Train" class="transport-btn bg-green-100 hover:bg-green-200 text-green-800 font-bold py-4 px-2 rounded-lg flex items-center justify-center text-lg transition-transform transform hover:scale-105">🚆&nbsp; Train</button>
+                        <button data-mode="Water" class="transport-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-4 px-2 rounded-lg flex items-center justify-center text-lg transition-transform transform hover:scale-105">🚢&nbsp; Water</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loader" class="hidden flex-col items-center justify-center p-8">
+            <div class="loader"></div>
+            <p class="mt-4 text-gray-600 font-semibold">Analyzing top search results...</p>
+        </div>
+        
+        <!-- Result Display Card -->
+        <div id="result-card" class="hidden card w-full rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 text-center">
+            <div class="flex justify-center mb-4">
+                <div class="result-icon"></div>
+            </div>
+            <p id="result-title" class="text-xl font-bold mb-2"></p>
+            <h2 id="result-side" class="text-5xl md:text-6xl font-black text-sky-600 mb-4"></h2>
+            <div id="result-explanation" class="text-lg text-gray-700 mb-4"></div>
+            <div id="expanded-explanation" class="text-left text-base bg-gray-100/50 p-4 rounded-lg mb-4 space-y-3 border">
+            </div>
+            <button id="expand-btn" class="hidden text-sm text-sky-600 hover:underline font-semibold mb-4">Show Less 👆</button>
+            
+            <!-- Refine Search Section -->
+            <div id="refine-section" class="hidden mt-6 pt-4 border-t border-gray-300">
+                 <div class="flex items-center gap-2">
+                    <input type="text" id="refine-input" placeholder="Want to see a specific landmark?" class="w-full p-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition">
+                    <button id="refine-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 whitespace-nowrap text-sm">Refine</button>
+                </div>
+            </div>
+
+            <div id="result-search" class="mb-6"></div>
+            <button id="start-over-btn" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 mt-4">Start Over</button>
+        </div>
+
+    </main>
+    
+    <footer class="text-center mt-8">
+        <p class="text-gray-500 text-sm">Powered by AI magic ✨</p>
+    </footer>
+
+<script type="module">
+    // --- DOM Element References ---
+    const finderCard = document.getElementById('finder-card');
+    const resultCard = document.getElementById('result-card');
+    const loader = document.getElementById('loader');
+    
+    const steps = [document.getElementById('step-1'), document.getElementById('step-2'), document.getElementById('step-3')];
+    const fromInput = document.getElementById('from-input');
+    const toInput = document.getElementById('to-input');
+    
+    const transportButtons = document.querySelectorAll('.transport-btn');
+    const startOverBtn = document.getElementById('start-over-btn');
+    
+    const resultTitle = document.getElementById('result-title');
+    const resultSide = document.getElementById('result-side');
+    const resultExplanation = document.getElementById('result-explanation');
+    const expandBtn = document.getElementById('expand-btn');
+    const expandedExplanation = document.getElementById('expanded-explanation');
+    const resultSearch = document.getElementById('result-search');
+
+    const refineSection = document.getElementById('refine-section');
+    const refineInput = document.getElementById('refine-input');
+    const refineBtn = document.getElementById('refine-btn');
+
+    // --- State Management ---
+    let currentStep = 0;
+    let fromLocation = '';
+    let toLocation = '';
+    let transportMode = '';
+    let specificInterest = '';
+
+    // --- Dynamic Placeholder Logic ---
+    const fromPlaceholders = ["Nubra Valley", "Lucerne", "Delhi", "Queenstown", "San Francisco"];
+    const toPlaceholders = ["Turtuk", "Interlaken", "Kathmandu", "Milford Sound", "Yosemite"];
+    
+    let placeholderIndex = 0;
+    let placeholderInterval = setInterval(() => {
+        placeholderIndex = (placeholderIndex + 1) % fromPlaceholders.length;
+        
+        fromInput.placeholder = `e.g., ${fromPlaceholders[placeholderIndex]}`;
+        toInput.placeholder = `e.g., ${toPlaceholders[placeholderIndex]}`;
+    }, 3000);
+    
+    // --- Core Functions ---
+    function showStep(stepIndex) {
+        steps.forEach((step, index) => {
+            if (index === stepIndex) {
+                step.classList.remove('hidden-step');
+                step.classList.add('visible-step');
+                const input = step.querySelector('input');
+                if (input) {
+                    input.focus();
+                }
+            } else {
+                step.classList.remove('visible-step');
+                step.classList.add('hidden-step');
+            }
+        });
+        currentStep = stepIndex;
+    }
+
+    function nextStep() {
+        if (currentStep === 0 && fromInput.value.trim() !== '') {
+            fromLocation = fromInput.value.trim();
+            showStep(1);
+        } else if (currentStep === 1 && toInput.value.trim() !== '') {
+            toLocation = toInput.value.trim();
+            showStep(2);
+        }
+    }
+
+    async function getRecommendation() {
+        finderCard.classList.add('hidden');
+        resultCard.classList.add('hidden');
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
+
+        const specificInterestPrompt = specificInterest ? `**Specific Interest:** The user specifically wants to see "${specificInterest}".` : '';
+        const criticalInstruction = specificInterest
+            ? `Your PRIMARY GOAL is to determine which side offers the best view of the user's specific interest ("${specificInterest}"). The overall scenery is a secondary consideration. Your analysis must focus on this.`
+            : 'Your goal is to determine the best side for overall scenic views based on the consensus of search results.';
+
+        const prompt = `You are a Search Result Synthesizer. Your only job is to provide a JSON summary based on the consensus of current, top Google search results for a specific travel query.
+
+        **The User's Query:** Traveling from "${fromLocation}" to "${toLocation}" by ${transportMode}.
+        ${specificInterestPrompt}
+
+        **CRITICAL INSTRUCTIONS:**
+        1.  **Formulate Search Query:** Create the best possible Google search query to answer the user's question. If there's a specific interest, include it in the query.
+        2.  **Analyze Top Search Results:** Access and analyze the information in the current, top-ranking Google search results for your query. Focus on travel forums, reputable travel blogs, and detailed personal accounts.
+        3.  **Determine Consensus:** ${criticalInstruction}
+        4.  **Construct JSON:** Build the final JSON object based *strictly* on the synthesized information from the search results.
+
+        **JSON Output Format (Strict):**
+        Respond ONLY with a single, valid JSON object and no other text.
+        {
+          "side": "...",
+          "explanation": "...",
+          "elaborate_explanation": "...",
+          "other_side_explanation": "...",
+          "searchQuery": "..."
+        }
+
+        **Field Definitions based on Search Results:**
+        - "side": "Left", "Right", or "Toss-up".
+        - "explanation": If "side" is "Left" or "Right", a single sentence summarizing the finding. If "Toss-up", it MUST be an object: {"left": "Brief left side highlights.", "right": "Brief right side highlights."}
+        - "elaborate_explanation": A detailed paragraph on the recommended side's views. Null if "Toss-up".
+        - "other_side_explanation": A brief description of the other side's views. Null if "Toss-up".
+        - "searchQuery": The exact, most effective Google search query you formulated.
+        
+        Now, execute this process for the user's query and provide the complete JSON.`;
+        
+        try {
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+             });
+            
+            if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+              const rawText = result.candidates[0].content.parts[0].text;
+              const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+              if (!jsonMatch) throw new Error("No valid JSON found in response.");
+              
+              const jsonText = jsonMatch[0];
+              const data = JSON.parse(jsonText);
+              displayResult(data);
+            } else {
+              throw new Error("No content in API response.");
+            }
+        } catch (error) {
+            console.error("Error fetching recommendation:", error);
+            const errorData = {
+                side: "Oops!",
+                explanation: "I couldn't find the view for that trip right now. Please try again later.",
+                elaborate_explanation: null,
+                other_side_explanation: null,
+                searchQuery: null
+            };
+            displayResult(errorData);
+        }
+    }
+
+    function displayResult(data) {
+        loader.classList.add('hidden');
+        loader.classList.remove('flex');
+        
+        // Clear previous results
+        resultExplanation.innerHTML = '';
+        expandedExplanation.innerHTML = '';
+        expandedExplanation.classList.add('hidden');
+        expandBtn.classList.add('hidden');
+        resultSearch.innerHTML = '';
+        refineSection.classList.add('hidden');
+        
+        const baseTitle = specificInterest
+            ? `For the best view of ${specificInterest}, sit on the:`
+            : "Based on top search results, sit on the:";
+
+        if (data.side.toLowerCase() === 'toss-up') {
+            resultTitle.textContent = "Based on top search results, it's your choice:";
+            resultSide.textContent = "It's a Toss-up!";
+            if (typeof data.explanation === 'object' && data.explanation !== null && data.explanation.left && data.explanation.right) {
+                resultExplanation.innerHTML = `
+                    <div class="text-left space-y-4 text-base">
+                        <div>
+                            <strong class="block text-sky-700 font-bold tracking-wider">LEFT SIDE:</strong>
+                            <span class="text-gray-600">${data.explanation.left}</span>
+                        </div>
+                        <div>
+                            <strong class="block text-yellow-800 font-bold tracking-wider">RIGHT SIDE:</strong>
+                            <span class="text-gray-600">${data.explanation.right}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultExplanation.textContent = "Both sides offer great views on this route. You can't go wrong!";
+            }
+        } else {
+            resultTitle.textContent = baseTitle;
+            resultSide.textContent = data.side.toUpperCase() + "!";
+            resultExplanation.textContent = data.explanation;
+
+            if (data.elaborate_explanation || data.other_side_explanation) {
+                let expandedHtml = '';
+                if (data.elaborate_explanation) {
+                    expandedHtml += `<div><strong class="text-gray-800">What you'll see:</strong><p class="text-gray-600 mt-1">${data.elaborate_explanation}</p></div>`;
+                }
+                if (data.other_side_explanation) {
+                    expandedHtml += `<div><strong class="text-gray-800">On the other side:</strong><p class="text-gray-600 mt-1">${data.other_side_explanation}</p></div>`;
+                }
+                expandedExplanation.innerHTML = expandedHtml;
+                expandedExplanation.classList.remove('hidden'); // Show by default
+                expandBtn.classList.remove('hidden'); // Show the button
+                expandBtn.textContent = 'Show Less 👆'; // Set initial text
+            }
+        }
+
+        if (data.searchQuery) {
+            const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(data.searchQuery)}`;
+            resultSearch.innerHTML = `
+                <div class="mt-6 pt-4 border-t border-gray-300">
+                    <h4 class="font-bold text-md mb-3 text-left text-gray-800">Verify for yourself:</h4>
+                    <a href="${searchUrl}" target="_blank" rel="noopener noreferrer" class="inline-block bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105">
+                        See the Google search results
+                    </a>
+                </div>
+            `;
+        }
+        
+        if (!specificInterest) {
+             refineSection.classList.remove('hidden');
+        }
+        
+        resultCard.classList.remove('hidden');
+    }
+
+    function resetApp() {
+        resultCard.classList.add('hidden');
+        
+        fromInput.value = '';
+        toInput.value = '';
+        refineInput.value = '';
+        fromLocation = '';
+        toLocation = '';
+        transportMode = '';
+        specificInterest = '';
+        
+        // This is the corrected logic:
+        // 1. Set the finder card to the correct initial state
+        showStep(0);
+        // 2. NOW, make the finder card visible
+        finderCard.classList.remove('hidden');
+    }
+
+    // --- Event Listeners ---
+    fromInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); nextStep(); }
+    });
+
+    toInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); nextStep(); }
+    });
+
+    transportButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            transportMode = button.dataset.mode;
+            specificInterest = '';
+            getRecommendation();
+        });
+    });
+    
+    refineBtn.addEventListener('click', () => {
+        const interest = refineInput.value.trim();
+        if (interest) {
+            specificInterest = interest;
+            getRecommendation();
+        }
+    });
+
+    refineInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            refineBtn.click();
+        }
+    });
+
+    expandBtn.addEventListener('click', () => {
+        const isHidden = expandedExplanation.classList.toggle('hidden');
+        expandBtn.textContent = isHidden ? 'Read More 👇' : 'Show Less 👆';
+    });
+
+    startOverBtn.addEventListener('click', resetApp);
+    
+    // --- Initial Setup ---
+    showStep(0);
+
+</script>
+
+</body>
+</html>
